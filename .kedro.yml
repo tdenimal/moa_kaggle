@@ -1,0 +1,6 @@
+context_path: moa_kaggle.run.ProjectContext
+project_name: "moa_kaggle"
+project_version: "0.16.5"
+package_name: "moa_kaggle"
+hooks:
+  - moa_kaggle.hooks.project_hooks
