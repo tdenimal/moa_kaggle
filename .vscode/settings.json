@@ -1,3 +1,4 @@
 {
-    "python.pythonPath": "/home/tdenimal/miniconda3/envs/moa_kaggle/bin/python"
+    "python.pythonPath": "/home/tdenimal/miniconda3/envs/moa_kaggle/bin/python",
+    "python.dataScience.jupyterServerURI": "local"
 }
