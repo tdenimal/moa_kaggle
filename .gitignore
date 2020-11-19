@@ -155,3 +155,9 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+
+
+#Custom
+*.pth
+*.pkl
+*.csv
