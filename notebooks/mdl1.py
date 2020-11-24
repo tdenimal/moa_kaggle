@@ -6,7 +6,10 @@ from torch.utils.data import DataLoader, Dataset
 import torch.optim as optim
 import torch.nn.functional as F
 from torch.optim.lr_scheduler import ReduceLROnPlateau
-import numpy as np
+
+from torch.utils.dlpack import to_dlpack
+from torch.utils.dlpack import from_dlpack
+
 import os
 import random
 import sys
@@ -14,11 +17,8 @@ os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
 
 from sklearn.metrics import log_loss
 
-import numpy as np # linear algebra
 import pandas as pd 
 
-import torch
-import numpy as np
 from scipy.sparse import csc_matrix
 import time
 from abc import abstractmethod
@@ -40,6 +40,7 @@ from torch.nn.modules.loss import _WeightedLoss
 import torch.nn.functional as F
 
 
+#data_dir = '../input/lish-moa'
 data_dir = '../data/01_raw'
 os.listdir(data_dir)
 
@@ -55,17 +56,19 @@ seed = 42
 NFOLDS = 5
 
 # HyperParameters
-EPOCHS = 35 #30
+EPOCHS = 30 #30
 
 BATCH_SIZE = 128
 WEIGHT_DECAY = {'ALL_TARGETS': 1e-5, 'SCORED_ONLY': 3e-6}
 MAX_LR = {'ALL_TARGETS': 1e-2, 'SCORED_ONLY': 3e-3}
 DIV_FACTOR = {'ALL_TARGETS': 1e3, 'SCORED_ONLY': 1e2}
+FINAL_DIV_FACTOR = {'ALL_TARGETS': 1e4, 'SCORED_ONLY': 1e4} #change
 PCT_START = 0.1
 
 
-hidden_sizes = [1500,1250,1000,750] #[1500,1250,1000,750]
-dropout_rates = [0.5, 0.35, 0.35, 0.3] #[0.5, 0.35, 0.3, 0.25]
+#hidden_sizes = [1500,1250,1000,750] #[1500,1250,1000,750]
+hidden_sizes = [1200,1000,1000,1000]
+dropout_rates = [0.25, 0.25, 0.25, 0.25] #[0.5, 0.35, 0.3, 0.25]
 #SEED = [0,1,2,3,4,5,6] #<-- Update
 #SEED = [0,3,6]
 SEED = [0]
@@ -106,10 +109,12 @@ class MoADataset:
     
     def __getitem__(self, idx):
         dct = {
-            'x' : torch.tensor(self.features[idx, :], dtype=torch.float),
-            'y' : torch.tensor(self.targets[idx, :], dtype=torch.float),         
+           'x' : torch.tensor(self.features[idx, :], dtype=torch.float),
+           'y' : torch.tensor(self.targets[idx, :], dtype=torch.float),         
         }
         return dct
+
+
     
 class TestDataset:
     def __init__(self, features):
@@ -131,7 +136,6 @@ def train_fn(model, optimizer, scheduler, loss_fn, dataloader, device):
     for data in dataloader:
         optimizer.zero_grad()
         inputs, targets = data['x'].to(device), data['y'].to(device)
-#         print(inputs.shape)
         outputs = model(inputs)
         loss = loss_fn(outputs, targets)
         loss.backward()
@@ -157,10 +161,8 @@ def valid_fn(model, loss_fn, dataloader, device):
         
         final_loss += loss.item()
         valid_preds.append(outputs.sigmoid().detach().cpu().numpy())
-        
 
     final_loss /= len(dataloader)
-
 
     valid_preds = np.concatenate(valid_preds)
     
@@ -388,14 +390,16 @@ def run_training(fold, seed):
         train_dataset = MoADataset(X_train, y_train)
         valid_dataset = MoADataset(X_val, y_val)
 
+
         trainloader = torch.utils.data.DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, drop_last=True)
         validloader = torch.utils.data.DataLoader(valid_dataset, batch_size=BATCH_SIZE, shuffle=False)
-        
+
         optimizer = torch.optim.Adam(model.parameters(), lr=1e-3, weight_decay=WEIGHT_DECAY[tag_name])
         scheduler = optim.lr_scheduler.OneCycleLR(optimizer=optimizer,
                                                   steps_per_epoch=len(trainloader),
                                                   pct_start=PCT_START,
-                                                  div_factor=DIV_FACTOR[tag_name], 
+                                                  div_factor=DIV_FACTOR[tag_name],
+                                                  final_div_factor=FINAL_DIV_FACTOR[tag_name],
                                                   max_lr=MAX_LR[tag_name],
                                                   epochs=EPOCHS)
         

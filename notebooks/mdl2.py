@@ -1,4 +1,6 @@
-import numpy as np
+#import numpy as np
+import cupy as cp
+#import torch.cuda.nvtx as nvtx
 
 import torch
 from torch import nn
@@ -14,11 +16,10 @@ os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
 
 from sklearn.metrics import log_loss
 
-import numpy as np # linear algebra
+
 import pandas as pd 
 
 import torch
-import numpy as np
 from scipy.sparse import csc_matrix
 import time
 from abc import abstractmethod
@@ -40,6 +41,7 @@ from torch.nn.modules.loss import _WeightedLoss
 import torch.nn.functional as F
 
 
+#data_dir = '../input/lish-moa'
 data_dir = '../data/01_raw'
 os.listdir(data_dir)
 
@@ -64,11 +66,15 @@ WEIGHT_DECAY = 1e-5
 EARLY_STOPPING_STEPS = PATIENCE+5
 EARLY_STOP = False
 
-hidden_sizes = [1200,1000,1100] #[1200,1000,1000]
+hidden_sizes = [1200,1000,1000] #[1200,1000,1000]
 dropout_rates = [0.2619422201258426,0.2619422201258426,0.27]  #[0.2619422201258426,0.2619422201258426,0.27]
 #SEED = [0,1,2,3,4,5,6] #<-- Update
 #SEED = [0,3,6]
 SEED = [0]
+pct_start=0.1
+div_factor=1e4
+final_div_factor=1e4 #1e5
+max_lr=1e-2
 
 
 
@@ -145,18 +151,28 @@ def train_fn(model, optimizer, scheduler, loss_fn, dataloader, device):
     model.train()
     final_loss = 0
     
-    for data in dataloader:
-        optimizer.zero_grad()
+
+    for batch_idx, data in enumerate(dataloader):
+        #nvtx.range_push("Batch " + str(batch_idx))
+
+        #nvtx.range_push("Copy to Device")
         inputs, targets1, targets2 = data['x'].to(device), data['y_scored'].to(device), data['y_nscored'].to(device)
 #         print(inputs.shape)
+        #nvtx.range.pop()
+
+        #nvtx.range_push("Forward pass")
+        optimizer.zero_grad()
         outputs1,outputs2 = model(inputs)
         loss1 = loss_fn(outputs1, targets1)
         loss2 = loss_fn(outputs2, targets2)
         loss = loss1 + loss2
+        #nvtx.range.pop()
+        #nvtx.range_push("Backward pass")
         loss.backward()
         optimizer.step()
         scheduler.step()
-        
+        #nvtx.range.pop()
+        #nvtx.range.pop()
         final_loss += loss.item()
         
     final_loss /= len(dataloader)
@@ -374,7 +390,8 @@ def run_training(fold, seed):
         
         train_loss = train_fn(model, optimizer,scheduler, loss_tr, trainloader, device)
         valid_loss, valid_preds = valid_fn(model, loss_fn, validloader, device)
-        print(f"FOLD: {fold}, EPOCH: {epoch}, train_loss: {train_loss}, valid_loss: {valid_loss}")
+       # print(f"FOLD: {fold}, EPOCH: {epoch}, train_loss: {train_loss}, valid_loss: {valid_loss}")
+        print(f"SEED: {seed}, FOLD: {fold}, EPOCH: {epoch}, train_loss: {train_loss:.6f}, valid_loss: {valid_loss:.6f}")
         #scheduler.step(valid_loss)
         
         if valid_loss < best_loss:

@@ -10,6 +10,8 @@ from sklearn.decomposition import PCA
 import numpy as np # linear algebra
 import pandas as pd 
 
+import sys
+sys.path.append('../input/iterativestratification')
 from iterstrat.ml_stratifiers import MultilabelStratifiedKFold
 from sklearn.preprocessing import QuantileTransformer
 
@@ -25,7 +27,7 @@ from pathlib import Path
 import shutil
 import zipfile
 
-data_dir = '../data/01_raw'
+data_dir = '../input/lish-moa'
 os.listdir(data_dir)
 
 
@@ -73,17 +75,15 @@ CELLS = [col for col in data_all.columns if col.startswith("c-")]
 
 
 #True gauss rank
-import cupy as cp
-from cupyx.scipy.special import erfinv
+import numpy as np
+from scipy.special import erfinv as sp_erfinv
 epsilon = 1e-6
-
 for k in (cols_numeric):
-    r_gpu = cp.array(data_all.loc[:,k])
-    r_gpu = r_gpu.argsort().argsort()
-    r_gpu = (r_gpu/r_gpu.max()-0.5)*2 
-    r_gpu = cp.clip(r_gpu,-1+epsilon,1-epsilon)
-    r_gpu = erfinv(r_gpu) 
-    data_all.loc[:,k] = cp.asnumpy( r_gpu * np.sqrt(2) )
+    r_cpu = data_all.loc[:,k].argsort().argsort()
+    r_cpu = (r_cpu/r_cpu.max()-0.5)*2 
+    r_cpu = np.clip(r_cpu,-1+epsilon,1-epsilon)
+    r_cpu = sp_erfinv(r_cpu) 
+    data_all.loc[:,k] = r_cpu * np.sqrt(2)
 
 
 

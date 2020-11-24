@@ -24,6 +24,8 @@ from scipy.sparse import csc_matrix
 import time
 from abc import abstractmethod
 #from pytorch_tabnet import tab_network
+import sys
+#sys.path.append('../input/pytorch-tabnet')
 from pytorch_tabnet.multiclass_utils import unique_labels
 from sklearn.metrics import roc_auc_score, mean_squared_error, accuracy_score
 from torch.nn.utils import clip_grad_norm_
@@ -43,6 +45,7 @@ from torch.nn.modules.loss import _WeightedLoss
 import torch.nn.functional as F
 
 
+#data_dir = '../input/lish-moa'
 data_dir = '../data/01_raw'
 os.listdir(data_dir)
 
@@ -59,19 +62,20 @@ NFOLDS = 5
 # Averaging on multiple SEEDS
 
 #SEED = [0,1,2,3,4,5,6] #<-- Update
-#SEED = [0,3,6]
+
 EPOCHS = 200 #200
-PATIENCE_SCH=10 #5
+PATIENCE_SCH=15 #5
 PATIENCE=40 #20
 LEARNING_RATE =2e-2 #1e-3
 FACTOR = .9
 WEIGHT_DECAY = 1e-5
 
 BATCH_SIZE = 1024
+#SEED = [0,3,6]
 SEED = [0]
 
-n_d = 16 #28
-n_a = 40 #28
+n_d = 24 #24
+n_a = 64 #64
 n_steps = 1
 gamma = 1.3
 n_independent=2
@@ -1573,7 +1577,8 @@ def run_training(fold, seed):
                             #cat_idxs=cats_idx,
                             optimizer_fn = optim.Adam,
                             optimizer_params = dict(lr = LEARNING_RATE, weight_decay = WEIGHT_DECAY),
-                            mask_type = "entmax",
+                            #mask_type = "entmax",
+                            mask_type = "sparsemax",
                             scheduler_params = dict(
                                 mode = "min", patience = PATIENCE_SCH, min_lr = 1e-5, factor = FACTOR, verbose = True),
                             scheduler_fn = ReduceLROnPlateau,
