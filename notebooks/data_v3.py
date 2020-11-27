@@ -11,7 +11,7 @@ import numpy as np # linear algebra
 import pandas as pd 
 
 import sys
-sys.path.append('../input/iterativestratification')
+#sys.path.append('../input/iterativestratification')
 from iterstrat.ml_stratifiers import MultilabelStratifiedKFold
 from sklearn.preprocessing import QuantileTransformer
 
@@ -27,7 +27,8 @@ from pathlib import Path
 import shutil
 import zipfile
 
-data_dir = '../input/lish-moa'
+#data_dir = '../input/lish-moa'
+data_dir = '../data/01_raw'
 os.listdir(data_dir)
 
 

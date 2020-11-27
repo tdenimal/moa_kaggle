@@ -24,6 +24,8 @@ from scipy.sparse import csc_matrix
 import time
 from abc import abstractmethod
 #from pytorch_tabnet import tab_network
+import sys
+#sys.path.append('../input/pytorch-tabnet')
 from pytorch_tabnet.multiclass_utils import unique_labels
 from sklearn.metrics import roc_auc_score, mean_squared_error, accuracy_score
 from torch.nn.utils import clip_grad_norm_
@@ -43,6 +45,7 @@ from torch.nn.modules.loss import _WeightedLoss
 import torch.nn.functional as F
 
 
+#data_dir = '../input/lish-moa'
 data_dir = '../data/01_raw'
 os.listdir(data_dir)
 
@@ -59,23 +62,34 @@ NFOLDS = 5
 # Averaging on multiple SEEDS
 
 #SEED = [0,1,2,3,4,5,6] #<-- Update
-#SEED = [0,3,6]
+
 EPOCHS = 200 #200
-PATIENCE_SCH=15 #5
-PATIENCE=40 #20
-LEARNING_RATE =2e-2 #1e-3
-FACTOR = .9
-WEIGHT_DECAY = 1e-5
+PATIENCE_SCH=10 #10
+PATIENCE=40 #40
+LEARNING_RATE =3e-2 #3e-2
+FACTOR = .7#.8
+WEIGHT_DECAY = 2e-5
+
+pct_start=0.1
+div_factor=1e4
+final_div_factor=1e4 #1e5
+max_lr=3e-2
+
+mask_type = "entmax"
+momentum=0.02
+epsilon=1e-15
 
 BATCH_SIZE = 1024
+virtual_batch_size=32
+#SEED = [0,3,6]
 SEED = [0]
 
-n_d = 28 #24
-n_a = 64 #64
+n_d = 32 #24
+n_a = 100 #80
 n_steps = 1
 gamma = 1.3
 n_independent=2
-n_shared=1
+n_shared=0
 
 
 def seed_everything(seed=42):
@@ -91,8 +105,8 @@ def seed_everything(seed=42):
     
 seed_everything(seed)
 
-train_df = pd.read_csv("train_v1c.csv.gz",compression="gzip")
-test_df = pd.read_csv("test_v1c.csv.gz",compression="gzip")
+train_df = pd.read_csv("train_v1.csv.gz",compression="gzip")
+test_df = pd.read_csv("test_v1.csv.gz",compression="gzip")
 
 
 feat_cols = [c for c in train_df.columns if c not in ["sig_id","cp_type","drug_id","fold"]]
@@ -1027,6 +1041,7 @@ class TabModel(BaseEstimator):
             print(msg_epoch)
 
         total_time = 0
+        current_lr = [group['lr'] for group in self.optimizer.param_groups][0]
         while (self.epoch < self.max_epochs and self.patience_counter < self.patience):
             starting_time = time.time()
             # updates learning rate history
@@ -1034,11 +1049,25 @@ class TabModel(BaseEstimator):
 
             fit_metrics = self.fit_epoch(train_dataloader, valid_dataloader)
 
+
+
+            #Reload best model if optimizer has reduced lr
+            if current_lr != self.scheduler._last_lr[0]:
+                current_lr = self.scheduler._last_lr[0]
+                print("Reload state of best epoch for network and optimizer")
+                checkpoint = torch.load("best_checkpoint3.pth")
+                self.network.load_state_dict(checkpoint['model_state_dict'])
+                self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+                self.optimizer.param_groups[-1]["lr"] = self.scheduler._last_lr[0]
+
+
             # leaving it here, may be used for callbacks later
             self.losses_train.append(fit_metrics['train']['loss_avg'])
             self.losses_valid.append(fit_metrics['valid']['total_loss'])
             self.metrics_train.append(fit_metrics['train']['stopping_loss'])
             self.metrics_valid.append(fit_metrics['valid']['stopping_loss'])
+
+
 
             stopping_loss = fit_metrics['valid']['stopping_loss']
             if stopping_loss < self.best_cost:
@@ -1046,11 +1075,18 @@ class TabModel(BaseEstimator):
                 self.patience_counter = 0
                 # Saving model
                 self.best_network = deepcopy(self.network)
+                torch.save({
+                'model_state_dict': self.network.state_dict(),
+                'optimizer_state_dict': self.optimizer.state_dict(),
+                }, "best_checkpoint3.pth")
                 # torch.save(self.network.state_dict(), "best_network.pth")
                 has_improved = True
             else:
                 self.patience_counter += 1
                 has_improved=False
+
+           
+
             self.epoch += 1
             total_time += time.time() - starting_time
 
@@ -1565,15 +1601,15 @@ def run_training(fold, seed):
                             gamma = gamma,
                             n_independent=n_independent,
                             n_shared=n_shared,
-                            momentum=0.02,
-                            epsilon=1e-15,
+                            momentum=momentum,
+                            epsilon=epsilon,
                             lambda_sparse = 0,
                             #cat_dims=cat_dims, 
                             #cat_emb_dim=cat_emb_dim, 
                             #cat_idxs=cats_idx,
                             optimizer_fn = optim.Adam,
                             optimizer_params = dict(lr = LEARNING_RATE, weight_decay = WEIGHT_DECAY),
-                            mask_type = "entmax",
+                            mask_type = mask_type,
                             scheduler_params = dict(
                                 mode = "min", patience = PATIENCE_SCH, min_lr = 1e-5, factor = FACTOR, verbose = True),
                             scheduler_fn = ReduceLROnPlateau,
@@ -1595,7 +1631,7 @@ def run_training(fold, seed):
         max_epochs = EPOCHS,
         patience = PATIENCE,
         batch_size = BATCH_SIZE, 
-        virtual_batch_size = 32,
+        virtual_batch_size = virtual_batch_size,
         num_workers = 1,
         drop_last = False,
         # To use binary cross entropy because this is not a regression problem

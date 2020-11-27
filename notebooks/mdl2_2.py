@@ -66,15 +66,16 @@ WEIGHT_DECAY = 1e-5
 EARLY_STOPPING_STEPS = PATIENCE+5
 EARLY_STOP = False
 
+#hidden_sizes = [1200,1000,1000] #[1200,1000,1000]
 hidden_sizes = [1200,1000,1000] #[1200,1000,1000]
-dropout_rates = [0.2619422201258426,0.2619422201258426,0.27]  #[0.2619422201258426,0.2619422201258426,0.27]
+dropout_rates = [0.3,0.2,0.2]  #[0.2619422201258426,0.2619422201258426,0.27]
 #SEED = [0,1,2,3,4,5,6] #<-- Update
 #SEED = [0,3,6]
 SEED = [0]
-pct_start=0.1,
-div_factor=1e4, 
-final_div_factor=1e5,
-max_lr=1e-2,
+pct_start=0.1
+div_factor=1e4
+final_div_factor=1e3
+max_lr=1e-2
 
 
 
@@ -402,7 +403,7 @@ def run_training(fold, seed):
             
             best_loss = valid_loss
             oof[valid.index] = valid_preds
-            torch.save(model.state_dict(), f"FOLD{fold}_m1_.pth")
+            torch.save(model.state_dict(), f"FOLD{fold}_m1_2.pth")
         
         elif(EARLY_STOP == True):
             
@@ -424,7 +425,7 @@ def run_training(fold, seed):
         dropout_rates=dropout_rates
     )
     
-    model.load_state_dict(torch.load(f"FOLD{fold}_m1_.pth"))
+    model.load_state_dict(torch.load(f"FOLD{fold}_m1_2.pth"))
     model.to(device)
     
     predictions_scored = np.zeros((test_df.shape[0], num_targets_scored))
@@ -485,5 +486,5 @@ sample_submission = pd.read_csv(data_dir+'/sample_submission.csv')
 oof = train_features[["sig_id"]].merge(train_df[train_targets_scored.columns], on='sig_id', how='inner')
 sub = sample_submission.drop(columns=targets_scored).merge(test_df[train_targets_scored.columns], on='sig_id', how='left').fillna(0)
 
-oof.to_csv("oof_v2.csv.gz",index=False,compression="gzip")
-sub.to_csv("sub_v2.csv.gz",index=False,compression="gzip")
+oof.to_csv("oof_v2_2.csv.gz",index=False,compression="gzip")
+sub.to_csv("sub_v2_2.csv.gz",index=False,compression="gzip")
