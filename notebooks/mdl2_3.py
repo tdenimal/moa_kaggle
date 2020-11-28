@@ -57,7 +57,7 @@ seed = 42
 NFOLDS = 5
 
 # HyperParameters
-EPOCHS = 30 #30
+EPOCHS = 20 #30
 PATIENCE=40
 
 BATCH_SIZE = 128
@@ -66,13 +66,13 @@ WEIGHT_DECAY = 1e-5
 EARLY_STOPPING_STEPS = PATIENCE+5
 EARLY_STOP = False
 
-hidden_sizes = [1200,1000,1000] #[1200,1000,1000]
-dropout_rates = [0.2619422201258426,0.2619422201258426,0.27]  #[0.2619422201258426,0.2619422201258426,0.27]
+hidden_sizes = [1300,800,800] #[1200,1000,1000]
+dropout_rates = [0.25,0.25,0.4]  #[0.2619422201258426,0.2619422201258426,0.27]
 #SEED = [0,1,2,3,4,5,6] #<-- Update
 #SEED = [0,3,6]
 SEED = [0]
 pct_start=0.1
-div_factor=1e4
+div_factor=1e3
 final_div_factor=1e3
 max_lr=1e-2
 

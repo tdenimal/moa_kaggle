@@ -56,19 +56,20 @@ seed = 42
 NFOLDS = 5
 
 # HyperParameters
-EPOCHS = 30 #30
+ALL_TARGETS_EPOCHS = 30 #30
+SCORED_ONLY_EPOCHS = 40 #30
 
 BATCH_SIZE = 128
 WEIGHT_DECAY = {'ALL_TARGETS': 1e-5, 'SCORED_ONLY': 3e-6}
 MAX_LR = {'ALL_TARGETS': 1e-2, 'SCORED_ONLY': 3e-3}
 DIV_FACTOR = {'ALL_TARGETS': 1e3, 'SCORED_ONLY': 1e2}
-FINAL_DIV_FACTOR = {'ALL_TARGETS': 1e4, 'SCORED_ONLY': 1e4} #change
+FINAL_DIV_FACTOR = {'ALL_TARGETS': 1e3, 'SCORED_ONLY': 1e3} #change
 PCT_START = 0.1
 
 
 #hidden_sizes = [1500,1250,1000,750] #[1500,1250,1000,750]
-hidden_sizes = [1200,1000,1000,1000]
-dropout_rates = [0.25, 0.25, 0.25, 0.25] #[0.5, 0.35, 0.3, 0.25]
+hidden_sizes = [1500,1200,1000,1000]
+dropout_rates = [0.4, 0.25, 0.25, 0.25] #[0.5, 0.35, 0.3, 0.25]
 #SEED = [0,1,2,3,4,5,6] #<-- Update
 #SEED = [0,3,6]
 SEED = [0]
@@ -381,11 +382,13 @@ def run_training(fold, seed):
             y_train = np.append(y_scored_train,y_nscored_train,axis=1)
             y_val = np.append(y_scored_val,y_nscored_val,axis=1)
             oof = np.zeros((train_df.shape[0], num_targets_scored+num_targets_nscored))
+            EPOCHS = ALL_TARGETS_EPOCHS
 
         else:
             y_train = y_scored_train
             y_val = y_scored_val
             oof = np.zeros((train_df.shape[0], num_targets_scored))
+            EPOCHS = SCORED_ONLY_EPOCHS
 
         train_dataset = MoADataset(X_train, y_train)
         valid_dataset = MoADataset(X_val, y_val)
@@ -422,9 +425,13 @@ def run_training(fold, seed):
                 oof[valid.index] = valid_preds
                 torch.save(model.state_dict(), f"{tag_name}_FOLD{fold}_.pth")
 
+        print(f"Best loss for seed {seed}, fold {fold}: {best_loss}")
+
         return oof
 
-    fine_tune_scheduler = FineTuneScheduler(EPOCHS)
+
+
+    fine_tune_scheduler = FineTuneScheduler(SCORED_ONLY_EPOCHS)
 
     pretrained_model = Model(
         num_features=num_features,

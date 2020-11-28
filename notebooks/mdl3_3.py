@@ -63,17 +63,12 @@ NFOLDS = 5
 
 #SEED = [0,1,2,3,4,5,6] #<-- Update
 
-EPOCHS = 200 #200
+EPOCHS = 240 #200
 PATIENCE_SCH=10 #10
 PATIENCE=40 #40
-LEARNING_RATE =3e-2 #3e-2
-FACTOR = .7#.8
-WEIGHT_DECAY = 2e-5
-
-pct_start=0.1
-div_factor=1e4
-final_div_factor=1e4 #1e5
-max_lr=3e-2
+LEARNING_RATE =2e-2 #2e-2
+FACTOR = .8#.8
+WEIGHT_DECAY = 2e-5  #2e-5
 
 mask_type = "entmax"
 momentum=0.02
@@ -84,8 +79,8 @@ virtual_batch_size=32
 #SEED = [0,3,6]
 SEED = [0]
 
-n_d = 32 #24
-n_a = 100 #80
+n_d = 28 #28
+n_a = 100 #100
 n_steps = 1
 gamma = 1.3
 n_independent=2
