@@ -100,8 +100,8 @@ def seed_everything(seed=42):
     
 seed_everything(seed)
 
-train_df = pd.read_csv("train_v1.csv.gz",compression="gzip")
-test_df = pd.read_csv("test_v1.csv.gz",compression="gzip")
+train_df = pd.read_csv("train_v3.csv.gz",compression="gzip")
+test_df = pd.read_csv("test_v3.csv.gz",compression="gzip")
 
 
 feat_cols = [c for c in train_df.columns if c not in ["sig_id","cp_type","drug_id","fold"]]

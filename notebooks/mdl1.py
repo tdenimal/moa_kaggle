@@ -57,19 +57,19 @@ NFOLDS = 5
 
 # HyperParameters
 ALL_TARGETS_EPOCHS = 30 #30
-SCORED_ONLY_EPOCHS = 40 #30
+SCORED_ONLY_EPOCHS = 30 #30
 
 BATCH_SIZE = 128
-WEIGHT_DECAY = {'ALL_TARGETS': 1e-5, 'SCORED_ONLY': 3e-6}
-MAX_LR = {'ALL_TARGETS': 1e-2, 'SCORED_ONLY': 3e-3}
+WEIGHT_DECAY = {'ALL_TARGETS': 1e-5, 'SCORED_ONLY': 1e-5}#5e-6
+MAX_LR = {'ALL_TARGETS': 1e-2, 'SCORED_ONLY': 4e-3} #4e-3 
 DIV_FACTOR = {'ALL_TARGETS': 1e3, 'SCORED_ONLY': 1e2}
 FINAL_DIV_FACTOR = {'ALL_TARGETS': 1e3, 'SCORED_ONLY': 1e3} #change
-PCT_START = 0.1
+PCT_START = 0.2
 
 
 #hidden_sizes = [1500,1250,1000,750] #[1500,1250,1000,750]
-hidden_sizes = [1500,1200,1000,1000]
-dropout_rates = [0.4, 0.25, 0.25, 0.25] #[0.5, 0.35, 0.3, 0.25]
+hidden_sizes = [1500,1200,1000,800]
+dropout_rates = [0.5, 0.25, 0.25, 0.25] #[0.5, 0.35, 0.3, 0.25]
 #SEED = [0,1,2,3,4,5,6] #<-- Update
 #SEED = [0,3,6]
 SEED = [0]
