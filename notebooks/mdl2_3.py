@@ -41,40 +41,48 @@ from torch.nn.modules.loss import _WeightedLoss
 import torch.nn.functional as F
 
 
-#data_dir = '../input/lish-moa'
-data_dir = '../data/01_raw'
+data_dir = '../input/lish-moa'
+#data_dir = '../data/01_raw'
 os.listdir(data_dir)
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
 #load data
-train_targets_scored = pd.read_csv(data_dir+'/train_targets_scored.csv')
-train_targets_nonscored = pd.read_csv(data_dir+'/train_targets_nonscored.csv')
+train_targets_scored = pd.read_csv("train_targets_scored_v3.csv.gz",compression="gzip")
+train_targets_nonscored = pd.read_csv("train_targets_nonscored_v3.csv.gz",compression="gzip")
 targets_scored = train_targets_scored.columns[1:]
 targets_nscored = train_targets_nonscored.columns[1:]
+
+
+train_df = pd.read_csv("train_v3.csv.gz",compression="gzip")
+test_df = pd.read_csv("test_v3.csv.gz",compression="gzip")
+
+
+feat_cols = [c for c in train_df.columns if c not in ["sig_id","cp_type","drug_id","fold"]]
+num_features=len(feat_cols)
+num_targets_scored=len(targets_scored)
+num_targets_nscored=len(targets_nscored)
 
 seed = 42
 NFOLDS = 5
 
 # HyperParameters
-EPOCHS = 20 #30
-PATIENCE=40
+EPOCHS = 20 #20
+PATIENCE=40 #40
 
-BATCH_SIZE = 128
-LEARNING_RATE = 2e-2
-WEIGHT_DECAY = 1e-5        
-EARLY_STOPPING_STEPS = PATIENCE+5
-EARLY_STOP = False
+BATCH_SIZE = 128 #128
+LEARNING_RATE = 2e-2 #2e-2
+WEIGHT_DECAY = 1e-5 #1e-5       
+EARLY_STOPPING_STEPS = PATIENCE+5 #PATIENCE+5
+EARLY_STOP = False #False
 
-hidden_sizes = [1300,800,800] #[1200,1000,1000]
-dropout_rates = [0.25,0.25,0.4]  #[0.2619422201258426,0.2619422201258426,0.27]
-#SEED = [0,1,2,3,4,5,6] #<-- Update
-#SEED = [0,3,6]
+hidden_sizes = [1000,800,800] #[1400,800,800]
+dropout_rates = [0.4,0.25,0.25]  #[0.25,0.25,0.4] 0.5,0.25,0.25
 SEED = [0]
-pct_start=0.1
-div_factor=1e3
-final_div_factor=1e3
-max_lr=1e-2
+pct_start=0.1 #0.1
+div_factor=1e3 #1e3
+final_div_factor=1e3 #1e3
+max_lr=1e-2 #1e-2
 
 
 
@@ -91,14 +99,7 @@ def seed_everything(seed=42):
     
 seed_everything(seed)
 
-train_df = pd.read_csv("train_v3.csv.gz",compression="gzip")
-test_df = pd.read_csv("test_v3.csv.gz",compression="gzip")
 
-
-feat_cols = [c for c in train_df.columns if c not in ["sig_id","cp_type","drug_id","fold"]]
-num_features=len(feat_cols)
-num_targets_scored=len(targets_scored)
-num_targets_nscored=len(targets_nscored)
 
 
 
@@ -409,7 +410,7 @@ def run_training(fold, seed):
             early_step += 1
             if (early_step >= early_stopping_steps):
                 break
-            
+    print(f"Best loss for SEED: {seed}, FOLD: {fold} : {best_loss}")
     
     #--------------------- PREDICTION---------------------
     x_test = test_df[feat_cols].values
@@ -482,7 +483,7 @@ print(roc_auc_score(y_true,y_pred))
 train_features = pd.read_csv(data_dir+'/train_features.csv')
 sample_submission = pd.read_csv(data_dir+'/sample_submission.csv')
 
-oof = train_features[["sig_id"]].merge(train_df[train_targets_scored.columns], on='sig_id', how='inner')
+oof = train_features[["sig_id"]].merge(train_df[train_targets_scored.columns], on='sig_id', how='left').fillna(0)
 sub = sample_submission.drop(columns=targets_scored).merge(test_df[train_targets_scored.columns], on='sig_id', how='left').fillna(0)
 
 oof.to_csv("oof_v2_3.csv.gz",index=False,compression="gzip")

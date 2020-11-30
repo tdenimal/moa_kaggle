@@ -25,7 +25,7 @@ import time
 from abc import abstractmethod
 #from pytorch_tabnet import tab_network
 import sys
-#sys.path.append('../input/pytorch-tabnet')
+sys.path.append('../input/pytorch-tabnet')
 from pytorch_tabnet.multiclass_utils import unique_labels
 from sklearn.metrics import roc_auc_score, mean_squared_error, accuracy_score
 from torch.nn.utils import clip_grad_norm_
@@ -45,16 +45,25 @@ from torch.nn.modules.loss import _WeightedLoss
 import torch.nn.functional as F
 
 
-#data_dir = '../input/lish-moa'
-data_dir = '../data/01_raw'
+data_dir = '../input/lish-moa'
+#data_dir = '../data/01_raw'
 os.listdir(data_dir)
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
 
 #load data
-train_targets_scored = pd.read_csv(data_dir+'/train_targets_scored.csv')
+train_targets_scored = pd.read_csv("train_targets_scored_v3.csv.gz",compression="gzip")
 targets_scored = train_targets_scored.columns[1:]
+
+
+train_df = pd.read_csv("train_v3.csv.gz",compression="gzip")
+test_df = pd.read_csv("test_v3.csv.gz",compression="gzip")
+
+
+feat_cols = [c for c in train_df.columns if c not in ["sig_id","cp_type","drug_id","fold"]]
+num_features=len(feat_cols)
+num_targets_scored=len(targets_scored)
 
 seed = 42
 NFOLDS = 5
@@ -63,7 +72,7 @@ NFOLDS = 5
 
 #SEED = [0,1,2,3,4,5,6] #<-- Update
 
-EPOCHS = 240 #200
+EPOCHS = 200 #200
 PATIENCE_SCH=10 #10
 PATIENCE=40 #40
 LEARNING_RATE =2e-2 #2e-2
@@ -71,20 +80,20 @@ FACTOR = .8#.8
 WEIGHT_DECAY = 2e-5  #2e-5
 
 mask_type = "entmax"
-momentum=0.02
-epsilon=1e-15
+momentum=0.02 #0.02
+epsilon=1e-15 #1e-15
 
-BATCH_SIZE = 1024
-virtual_batch_size=32
+BATCH_SIZE = 1024  #1024
+virtual_batch_size=64 #32
 #SEED = [0,3,6]
 SEED = [0]
 
 n_d = 28 #28
 n_a = 100 #100
-n_steps = 1
-gamma = 1.3
-n_independent=2
-n_shared=0
+n_steps = 1 #1
+gamma = 1.3 #1.3
+n_independent=2 #2
+n_shared=0 #0
 
 
 def seed_everything(seed=42):
@@ -100,13 +109,7 @@ def seed_everything(seed=42):
     
 seed_everything(seed)
 
-train_df = pd.read_csv("train_v3.csv.gz",compression="gzip")
-test_df = pd.read_csv("test_v3.csv.gz",compression="gzip")
 
-
-feat_cols = [c for c in train_df.columns if c not in ["sig_id","cp_type","drug_id","fold"]]
-num_features=len(feat_cols)
-num_targets_scored=len(targets_scored)
 
 
 class SmoothBCEwLogits(_WeightedLoss):
@@ -1697,8 +1700,8 @@ print(roc_auc_score(y_true,y_pred))
 train_features = pd.read_csv(data_dir+'/train_features.csv')
 sample_submission = pd.read_csv(data_dir+'/sample_submission.csv')
 
-oof_csv3 = train_features[["sig_id"]].merge(train_df[train_targets_scored.columns], on='sig_id', how='inner')
-sub_mdl3 = sample_submission.drop(columns=targets_scored).merge(test_df[train_targets_scored.columns], on='sig_id', how='left').fillna(0)
+oof = train_features[["sig_id"]].merge(train_df[train_targets_scored.columns], on='sig_id', how='left').fillna(0)
+sub = sample_submission.drop(columns=targets_scored).merge(test_df[train_targets_scored.columns], on='sig_id', how='left').fillna(0)
 
-oof_csv3.to_csv("oof_v3_3.csv.gz",index=False,compression="gzip")
-sub_mdl3.to_csv("sub_v3_3.csv.gz",index=False,compression="gzip")
+oof.to_csv("oof_v3_3.csv.gz",index=False,compression="gzip")
+sub.to_csv("sub_v3_3.csv.gz",index=False,compression="gzip")

@@ -40,17 +40,28 @@ from torch.nn.modules.loss import _WeightedLoss
 import torch.nn.functional as F
 
 
-#data_dir = '../input/lish-moa'
-data_dir = '../data/01_raw'
+data_dir = '../input/lish-moa'
+#data_dir = '../data/01_raw'
 os.listdir(data_dir)
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
 #load data
-train_targets_scored = pd.read_csv(data_dir+'/train_targets_scored.csv')
-train_targets_nonscored = pd.read_csv(data_dir+'/train_targets_nonscored.csv')
+train_targets_scored = pd.read_csv("train_targets_scored_v3.csv.gz",compression="gzip")
+train_targets_nonscored = pd.read_csv("train_targets_nonscored_v3.csv.gz",compression="gzip")
 targets_scored = train_targets_scored.columns[1:]
 targets_nscored = train_targets_nonscored.columns[1:]
+
+
+train_df = pd.read_csv("train_v3.csv.gz",compression="gzip")
+test_df = pd.read_csv("test_v3.csv.gz",compression="gzip")
+
+
+feat_cols = [c for c in train_df.columns if c not in ["sig_id","cp_type","drug_id","fold"]]
+num_features=len(feat_cols)
+num_targets_scored=len(targets_scored)
+num_targets_nscored=len(targets_nscored)
+
 
 seed = 42
 NFOLDS = 5
@@ -60,18 +71,15 @@ ALL_TARGETS_EPOCHS = 30 #30
 SCORED_ONLY_EPOCHS = 30 #30
 
 BATCH_SIZE = 128
-WEIGHT_DECAY = {'ALL_TARGETS': 1e-5, 'SCORED_ONLY': 1e-5}#5e-6
-MAX_LR = {'ALL_TARGETS': 1e-2, 'SCORED_ONLY': 4e-3} #4e-3 
-DIV_FACTOR = {'ALL_TARGETS': 1e3, 'SCORED_ONLY': 1e2}
-FINAL_DIV_FACTOR = {'ALL_TARGETS': 1e3, 'SCORED_ONLY': 1e3} #change
-PCT_START = 0.2
+WEIGHT_DECAY = {'ALL_TARGETS': 1e-5, 'SCORED_ONLY': 1e-5}#1e-5,1e-5
+MAX_LR = {'ALL_TARGETS': 1e-2, 'SCORED_ONLY': 4e-3} #1e-2,4e-3 
+DIV_FACTOR = {'ALL_TARGETS': 1e3, 'SCORED_ONLY': 1e2}#1e3,1e2
+FINAL_DIV_FACTOR = {'ALL_TARGETS': 1e3, 'SCORED_ONLY': 1e3}#1e3,1e3
+PCT_START = 0.2#0.2
 
 
-#hidden_sizes = [1500,1250,1000,750] #[1500,1250,1000,750]
-hidden_sizes = [1500,1200,1000,800]
-dropout_rates = [0.5, 0.25, 0.25, 0.25] #[0.5, 0.35, 0.3, 0.25]
-#SEED = [0,1,2,3,4,5,6] #<-- Update
-#SEED = [0,3,6]
+hidden_sizes = [1500,1200,1000,800]#1500,1200,1000,800
+dropout_rates = [0.5, 0.25, 0.25, 0.25] #[0.5, 0.25, 0.25, 0.25]
 SEED = [0]
 
 
@@ -89,14 +97,7 @@ def seed_everything(seed=42):
     
 seed_everything(seed)
 
-train_df = pd.read_csv("train_v3.csv.gz",compression="gzip")
-test_df = pd.read_csv("test_v3.csv.gz",compression="gzip")
 
-
-feat_cols = [c for c in train_df.columns if c not in ["sig_id","cp_type","drug_id","fold"]]
-num_features=len(feat_cols)
-num_targets_scored=len(targets_scored)
-num_targets_nscored=len(targets_nscored)
 
 
 
@@ -527,7 +528,7 @@ print(roc_auc_score(y_true,y_pred))
 train_features = pd.read_csv(data_dir+'/train_features.csv')
 sample_submission = pd.read_csv(data_dir+'/sample_submission.csv')
 
-oof = train_features[["sig_id"]].merge(train_df[train_targets_scored.columns], on='sig_id', how='inner')
+oof = train_features[["sig_id"]].merge(train_df[train_targets_scored.columns], on='sig_id', how='left').fillna(0)
 sub = sample_submission.drop(columns=targets_scored).merge(test_df[train_targets_scored.columns], on='sig_id', how='left').fillna(0)
 
 oof.to_csv("oof_v1.csv.gz",index=False,compression="gzip")

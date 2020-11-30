@@ -10,6 +10,8 @@ from sklearn.decomposition import PCA
 import numpy as np # linear algebra
 import pandas as pd 
 
+import sys
+sys.path.append('../input/iterativestratification')
 from iterstrat.ml_stratifiers import MultilabelStratifiedKFold
 from sklearn.preprocessing import QuantileTransformer
 
@@ -25,7 +27,8 @@ from pathlib import Path
 import shutil
 import zipfile
 
-data_dir = '../data/01_raw'
+data_dir = '../input/lish-moa'
+#data_dir = '../data/01_raw'
 os.listdir(data_dir)
 
 
@@ -35,8 +38,8 @@ scale = "rankgauss"
 decompo = "PCA"
 #ncompo_genes = 80
 #ncompo_cells = 10
-ncompo_genes = 80
-ncompo_cells = 10
+ncompo_genes = 600
+ncompo_cells = 50
 encoding = "dummy"
 variance_threshold = .8
 
@@ -63,6 +66,9 @@ def seed_everything(seed=42):
     
 seed_everything(seed)
 
+
+
+
 data_all = pd.concat([train_features, test_features], ignore_index = True)
 
 cols_numeric = [feat for feat in list(data_all.columns) if feat not in ["sig_id", "cp_type", "cp_time", "cp_dose"] +\
@@ -72,20 +78,13 @@ GENES = [col for col in data_all.columns if col.startswith("g-")]
 CELLS = [col for col in data_all.columns if col.startswith("c-")]
 
 
-#True gauss rank
-import cupy as cp
-from cupyx.scipy.special import erfinv
-epsilon = 1e-6
-
-for k in (cols_numeric):
-    r_gpu = cp.array(data_all.loc[:,k])
-    r_gpu = r_gpu.argsort().argsort()
-    r_gpu = (r_gpu/r_gpu.max()-0.5)*2 
-    r_gpu = cp.clip(r_gpu,-1+epsilon,1-epsilon)
-    r_gpu = erfinv(r_gpu) 
-    data_all.loc[:,k] = cp.asnumpy( r_gpu * np.sqrt(2) )
-
-
+#RankGauss
+for col in (GENES + CELLS):
+    transformer = QuantileTransformer(n_quantiles=100,random_state=seed, output_distribution="normal")
+    vec_len = len(data_all.loc[:,col].values)
+    raw_vec = data_all.loc[:,col].values.reshape(vec_len, 1)
+    transformer.fit(raw_vec)
+    data_all.loc[:,col] = transformer.transform(raw_vec).reshape(1, vec_len)[0]
 
 
 #PCA
@@ -114,54 +113,14 @@ elif encoding == "dummy":
     data_all = pd.get_dummies(data_all, columns = ["cp_time", "cp_dose"])
 
 
-for stats in ["sum", "mean", "std", "kurt", "skew"]:
-#for stats in ["sum",  "std"]:
+#for stats in ["sum", "mean", "std", "kurt", "skew"]:
+for stats in ["sum",  "std"]:
     data_all["g_" + stats] = getattr(data_all[GENES], stats)(axis = 1)
     data_all["c_" + stats] = getattr(data_all[CELLS], stats)(axis = 1)
 
-for stats in ["sum", "mean", "std", "kurt", "skew"]:
-#for stats in ["sum"]:
+#for stats in ["sum", "mean", "std", "kurt", "skew"]:
+for stats in ["sum"]:
     data_all["gc_" + stats] = getattr(data_all[GENES + CELLS], stats)(axis = 1)
-
-
-def fe_stats(df):
-    
-    features_g = GENES
-    features_c = CELLS
-    
-    gsquarecols=['g-574','g-211','g-216','g-0','g-255','g-577','g-153','g-389','g-60','g-370','g-248','g-167','g-203','g-177','g-301','g-332','g-517','g-6','g-744','g-224','g-162','g-3','g-736','g-486','g-283','g-22','g-359','g-361','g-440','g-335','g-106','g-307','g-745','g-146','g-416','g-298','g-666','g-91','g-17','g-549','g-145','g-157','g-768','g-568','g-396']
-        
-    df['c52_c42'] = df['c-52'] * df['c-42']
-    df['c13_c73'] = df['c-13'] * df['c-73']
-    df['c26_c13'] = df['c-23'] * df['c-13']
-    df['c33_c6'] = df['c-33'] * df['c-6']
-    df['c11_c55'] = df['c-11'] * df['c-55']
-    df['c38_c63'] = df['c-38'] * df['c-63']
-    df['c38_c94'] = df['c-38'] * df['c-94']
-    df['c13_c94'] = df['c-13'] * df['c-94']
-    df['c4_c52'] = df['c-4'] * df['c-52']
-    df['c4_c42'] = df['c-4'] * df['c-42']
-    df['c13_c38'] = df['c-13'] * df['c-38']
-    df['c55_c2'] = df['c-55'] * df['c-2']
-    df['c55_c4'] = df['c-55'] * df['c-4']
-    df['c4_c13'] = df['c-4'] * df['c-13']
-    df['c82_c42'] = df['c-82'] * df['c-42']
-    df['c66_c42'] = df['c-66'] * df['c-42']
-    df['c6_c38'] = df['c-6'] * df['c-38']
-    df['c2_c13'] = df['c-2'] * df['c-13']
-    df['c62_c42'] = df['c-62'] * df['c-42']
-    df['c90_c55'] = df['c-90'] * df['c-55']
-        
-        
-    for feature in features_c:
-        df[f'{feature}_squared'] = df[feature] ** 2     
-                
-    for feature in gsquarecols:
-        df[f'{feature}_squared'] = df[feature] ** 2        
-        
-    return df
-
-data_all=fe_stats(data_all)
 
 
 
@@ -224,7 +183,7 @@ train_df.loc[train_df.fold.isna(),'fold'] =\
 train_df.fold = train_df.fold.astype('int8')
 
 
-train_df.to_csv("train_v3b.csv.gz",index=False,compression="gzip")
-test_df.to_csv("test_v3b.csv.gz",index=False,compression="gzip")
+train_df.to_csv("train_v3.csv.gz",index=False,compression="gzip")
+test_df.to_csv("test_v3.csv.gz",index=False,compression="gzip")
 
 

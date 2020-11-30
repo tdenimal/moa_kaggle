@@ -11,7 +11,7 @@ import numpy as np # linear algebra
 import pandas as pd 
 
 import sys
-#sys.path.append('../input/iterativestratification')
+sys.path.append('../input/iterativestratification')
 from iterstrat.ml_stratifiers import MultilabelStratifiedKFold
 from sklearn.preprocessing import QuantileTransformer
 
@@ -27,8 +27,8 @@ from pathlib import Path
 import shutil
 import zipfile
 
-#data_dir = '../input/lish-moa'
-data_dir = '../data/01_raw'
+data_dir = '../input/lish-moa'
+#data_dir = '../data/01_raw'
 os.listdir(data_dir)
 
 
@@ -38,8 +38,8 @@ scale = "rankgauss"
 decompo = "PCA"
 #ncompo_genes = 80
 #ncompo_cells = 10
-ncompo_genes = 80
-ncompo_cells = 10
+ncompo_genes = 600
+ncompo_cells = 50
 encoding = "dummy"
 variance_threshold = .8
 
@@ -65,6 +65,20 @@ def seed_everything(seed=42):
     np.random.seed(seed)
     
 seed_everything(seed)
+
+
+#Remove ctl
+train_features = train_features[train_features["cp_type"] != "ctl_vehicle"]
+test_features = test_features[test_features["cp_type"] != "ctl_vehicle"]
+train_targets_scored = train_targets_scored.iloc[train_features.index]
+train_targets_nonscored = train_targets_nonscored.iloc[train_features.index]
+train_features.reset_index(drop = True, inplace = True)
+test_features.reset_index(drop = True, inplace = True)
+train_targets_scored.reset_index(drop = True, inplace = True)
+train_targets_nonscored.reset_index(drop = True, inplace = True)
+
+
+
 
 data_all = pd.concat([train_features, test_features], ignore_index = True)
 
@@ -187,5 +201,6 @@ train_df.fold = train_df.fold.astype('int8')
 
 train_df.to_csv("train_v3.csv.gz",index=False,compression="gzip")
 test_df.to_csv("test_v3.csv.gz",index=False,compression="gzip")
-
+train_targets_scored.to_csv("train_targets_scored_v3.csv.gz",index=False,compression="gzip")
+train_targets_nonscored.to_csv("train_targets_nonscored_v3.csv.gz",index=False,compression="gzip")
 
